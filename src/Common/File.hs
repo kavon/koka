@@ -51,6 +51,7 @@ import System.Directory ( doesFileExist, doesDirectoryExist
                         , copyFile
                         , getCurrentDirectory, getDirectoryContents
                         , createDirectoryIfMissing, canonicalizePath )
+import System.Info      ( os )
 
 import qualified Platform.Console as C (getProgramPath)
 import Lib.Trace
@@ -142,8 +143,18 @@ undelimPaths xs
 -- | Split a path into its directory parts
 splitPath :: FilePath -> [FilePath]
 splitPath fdir
-  = let fs = filter (not . null) $ splitOn isPathSep fdir
-    in if (null fs) then [""] else fs
+  = let fs = filter (not . null) $ splitOn isPathSep fdir in
+    let fs' = if (null fs) then [""] else fs
+    in repair fdir fs'
+    where
+      repair :: FilePath -> [FilePath] -> [FilePath]
+      repair
+        = if os == "windows"
+          then \_ fs -> fs
+          else repair'
+        where
+        repair' ('/' : _) (f : fs) = ('/' : f) : fs
+        repair' _ fs = fs
       
 
 joinPath :: FilePath -> FilePath -> FilePath

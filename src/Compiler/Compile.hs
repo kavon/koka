@@ -928,7 +928,8 @@ codeGenJS term flags modules compileTarget outBase core
             writeDoc outHtml contentHtml  
             -- try to ensure require.js is there
             -- TODO: we should search along the node_modules search path
-            mbReq <- searchPackages (packages flags) (outDir flags) "requirejs" "require.js"
+            -- mbReq <- searchPackages (packages flags) (outDir flags) "requirejs" "require.js"
+            mbReq <- findPackages [outDir flags, "node_modules"] "requirejs" "require.js"
             case mbReq of
               Just reqPath -> copyTextIfNewer (rebuild flags) reqPath (outName flags "require.js")
               Nothing      -> trace "could not find requirejs" $ return () -- TODO: warning?
@@ -938,7 +939,14 @@ codeGenJS term flags modules compileTarget outBase core
                do return (Just (runSystem (dquote outHtml ++ " &")))
               Node ->
                do return (Just (runSystem ("node " ++ outjs))) 
-
+         where
+           findPackages :: [FilePath] -> FilePath -> FilePath -> IO (Maybe FilePath)
+           findPackages [] _ _ = return Nothing
+           findPackages (sp : searchPaths) libdir libname
+             = do mbReq <- searchPackages (packages flags) sp libdir libname
+                  case mbReq of
+                    Nothing -> findPackages searchPaths libdir libname
+                    Just _ -> return mbReq
 
 
   
@@ -1021,4 +1029,3 @@ catchSystem io f
                           if (cmdFailed `isPrefixOf` msg)
                            then f (drop (length cmdFailed) msg)
                            else f msg)
-
